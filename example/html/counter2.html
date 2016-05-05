@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>---</title>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport" />
+<meta charset=utf-8></head>
+<body></body>
+<script language=javascript>
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+// shim for using process in browser
+
+var process = module.exports = {};
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = setTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    clearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        setTimeout(drainQueue, 0);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+},{}],2:[function(require,module,exports){
+var h = require('../list')
+
+var _count = 0
+function count (n) {
+  return _count += n
+}
+
+var counter2 = h.widget(function (n) {
+  return h(['number', ''+count(n||0)])
+})
+
+document.body.appendChild(
+  h(['content2', 
+    h.link('++', counter2, 1),
+    counter2,
+    h.link('--', counter2, -1)
+  ])
+)
+
+},{"../list":3}],3:[function(require,module,exports){
+(function (process){
+
+function widget (fn) {
+  var listeners = []
+  var value
+
+  function update (val) {
+    value = val
+    listeners.forEach(function (fn) { fn(value) })
+  }
+
+  function set (args) {
+    var val = fn(args, function (err, value) {
+      update(val)
+    })
+    if(val != null) update(val)
+  }
+
+  set.listen = function (listener) {
+    listeners.push(listener)
+    console.log('listener', value)
+//    listener(value)
+  }
+
+  process.nextTick(function () {
+    set(value)
+  })
+
+  return set
+}
+
+function isNode (n) {
+  return n && n.tagName
+}
+
+function html(list) {
+
+  var el = document.createElement('div')
+  if('function' === typeof list)
+    list.listen(function (_el) {
+      el.innerHTML = ''
+      el.appendChild(_el)
+    })
+  else if('string' === typeof list)
+    return document.createTextNode(list)
+  else if(isNode(list)) {
+    console.log('isNode', list)
+    return list
+  }
+  else {
+    el.className = list[0]
+    for(var i = 1 ; i < list.length; i++)
+      el.appendChild(html(list[i]))
+  }
+
+  console.log('el', el, list, isNode(list))
+
+  return el
+}
+
+function clone (val) {
+  if('function' == typeof val)
+    return val()
+
+  //if a val is a input type, take the val.value.
+  if(isNode(val) && val.value)
+    return val.value
+
+  if('object' === typeof val) {
+    _val = {}
+    for(var k in val)
+      _val[k] = clone(val[k])
+    return _val
+  }
+
+  return val
+}
+
+function link (text, target, value) {
+  var el = document.createElement('a')
+  el.href = '#'
+  el.onclick = function (){
+    target(clone(value))
+  }
+  el.textContent = text
+  return el
+}
+
+function input () {
+  return document.createElement('input')
+}
+
+module.exports = html
+
+module.exports.link = link
+module.exports.widget = widget
+module.exports.input = input
+//module.exports.link = link
+
+
+
+
+
+
+
+
+
+
+}).call(this,require('_process'))
+},{"_process":1}]},{},[2]);
+</script>
+</html>
